@@ -6,6 +6,9 @@
 #include "GameFramework/GameModeBase.h"
 #include "UE4_WeaponSystemGameModeBase.generated.h"
 
+class BaseHUD;
+class BaseController;
+
 /**
  * 
  */
@@ -14,4 +17,10 @@ class UE4_WEAPONSYSTEM_API AUE4_WeaponSystemGameModeBase : public AGameModeBase
 {
 	GENERATED_BODY()
 	
+
+public:
+	// Constructor Function
+	AUE4_WeaponSystemGameModeBase();
+
+
 };
