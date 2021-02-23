@@ -8,7 +8,6 @@
 #include "Camera/CameraComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/SpringArmComponent.h"
-#include "Components/SphereComponent.h"
 #include "Components/ChildActorComponent.h"
 
 #include "WeaponStatLibrary.h"
@@ -44,6 +43,7 @@ protected:
 	void Interact();
 	void Reload();
 	void SwitchCamera();
+	void Inventory();
 	void PrimaryFire();
 	void SecondaryFire();
 	void SwitchToKinetic();

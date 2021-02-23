@@ -35,9 +35,9 @@ ABaseCharacter::ABaseCharacter()
 
 	// Setup Menu Camera
 	MenuCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("Menu Camera"));
-	//MenuCamera->SetRelativeRotation(FRotator(0.0f, 0.0f, 0.0f));
-	//MenuCamera->SetRelativeLocation(FVector(-39.56f, 1.75f, 64.f));
-	MenuCamera->bUsePawnControlRotation = true;
+	MenuCamera->SetRelativeRotation(FRotator(0.0f, 180.0f, 0.0f));
+	MenuCamera->SetRelativeLocation(FVector(500.0f, 0.0f, 0.0f));
+	MenuCamera->bUsePawnControlRotation = false;
 
 	// Setup Weapon Child Actors
 	KineticWeaponComponent = CreateDefaultSubobject<UChildActorComponent>(TEXT("Kinetic Weapon Component"));
@@ -54,7 +54,6 @@ ABaseCharacter::ABaseCharacter()
 	bIsThirdPerson = false;
 	bIsInMenu = false;
 	CurrentSlot = SlotOne;
-
 
  	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
@@ -94,6 +93,7 @@ void ABaseCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCompo
 	// Add Action Binds
 	PlayerInputComponent->BindAction("Interact", IE_Released, this, &ABaseCharacter::Interact);
 	PlayerInputComponent->BindAction("SwitchCamera", IE_Pressed, this, &ABaseCharacter::SwitchCamera);
+	PlayerInputComponent->BindAction("Inventory", IE_Pressed, this, &ABaseCharacter::Inventory);
 
 	PlayerInputComponent->BindAction("Jump", IE_Pressed, this, &ACharacter::Jump);
 	PlayerInputComponent->BindAction("Jump", IE_Released, this, &ACharacter::StopJumping);
@@ -195,6 +195,50 @@ void ABaseCharacter::SwitchCamera()
 
 			bIsThirdPerson = false;
 		}
+	}
+}
+
+void ABaseCharacter::Inventory()
+{
+	// Check to see if currently in the menu
+	if (bIsInMenu == false)
+	{
+		// Go to the menu camera
+		if (bIsThirdPerson == true)
+		{
+			// Swap to the MenuCamera from third person
+			ThirdPersonCamera->SetActive(false, false);
+			MenuCamera->SetActive(true, true);
+		}
+		else if (bIsThirdPerson == false)
+		{
+			// Swap to the MenuCamera from first person
+			FirstPersonCamera->SetActive(false, false);
+			FirstPersonMesh->SetVisibility(false, false);
+			ThirdPersonMesh->SetVisibility(true, true);
+			MenuCamera->SetActive(true, true);
+		}
+		bIsInMenu = true;
+	}
+	else if (bIsInMenu == true)
+	{
+		// Exit the menu and return to the previous view (first or third person)
+		if (bIsThirdPerson == true)
+		{
+			// Go back to being in third person
+			ThirdPersonCamera->SetActive(true, true);
+			MenuCamera->SetActive(false, false);
+		}
+		else if (bIsThirdPerson == false)
+		{
+			// Go back to first person
+			FirstPersonCamera->SetActive(true, true);
+			FirstPersonMesh->SetVisibility(true, true);
+			ThirdPersonMesh->SetVisibility(false, false);
+			MenuCamera->SetActive(false, false);
+		}
+		bIsInMenu = false;
+
 	}
 }
 
