@@ -10,6 +10,7 @@
 #include "Particles/ParticleSystemComponent.h"
 #include "Components/WidgetComponent.h"
 #include "Components/SphereComponent.h"
+#include "Components/BoxComponent.h"
 #include "Components/SceneComponent.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Engine/DataTable.h"
@@ -40,6 +41,10 @@ public:
 	// Called whenever the rarity colour is needed
 	UFUNCTION(BlueprintCallable)
 		FLinearColor GetRarityColour(ERarityType Rarity);
+
+	// Called when the weapon is picked up
+	UFUNCTION()
+		void PickupWeapon();
 
 protected:
 	// Called when the game starts or when spawned
@@ -73,6 +78,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
 		USphereComponent* WeaponWidgetRange;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
+		UBoxComponent* WeaponPickupCollision;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
 		UWidgetComponent* WeaponWidgetComponent;

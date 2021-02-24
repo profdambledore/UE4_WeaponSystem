@@ -9,6 +9,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Components/ChildActorComponent.h"
+#include "DrawDebugHelpers.h"
 
 #include "WeaponStatLibrary.h"
 
@@ -50,6 +51,11 @@ protected:
 	void SwitchToEnergy();
 	void SwitchToHeavy();
 
+	void PickupWeapon();
+	void SwitchWeapon(ESlotType SlotToSwitch);
+
+	void SetupNewWeapon(ESlotType SlotType);
+
 public:	
 	// BaseCharacter Components
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
@@ -82,6 +88,9 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
 		UChildActorComponent* HeavyWeaponComponent;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
+		class UWeaponInventoryComponent* WeaponInventoryComponent;
+
 	//
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties")
 		bool bIsThirdPerson;
@@ -91,6 +100,8 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Properties")
 		TEnumAsByte<ESlotType> CurrentSlot;
+
+	class AWeaponPickup* WeaponToPickup;
 
 	// Weapon Class Properties
 	// The current selected weapon

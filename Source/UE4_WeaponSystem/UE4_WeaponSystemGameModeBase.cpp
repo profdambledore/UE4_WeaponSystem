@@ -10,7 +10,7 @@ AUE4_WeaponSystemGameModeBase::AUE4_WeaponSystemGameModeBase() : Super()
 {
 	// Use ContructorHelpers to find classes to set
 	// Default Pawn
-	static ConstructorHelpers::FClassFinder<APawn> DefaultPawnObject(TEXT("/Game/Player/BP_PlayerCharacter"));
+	static ConstructorHelpers::FClassFinder<APawn> DefaultPawnObject(TEXT("/Game/Player/BP_BaseCharacter"));
 	// Check that the class has been found
 	if (DefaultPawnObject.Succeeded())
 	{

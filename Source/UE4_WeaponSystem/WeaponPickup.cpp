@@ -38,6 +38,11 @@ AWeaponPickup::AWeaponPickup()
 	}
 	WeaponWidgetComponent->SetVisibility(false, false);
 
+	// Setup the pickup collision
+	WeaponPickupCollision = CreateDefaultSubobject<UBoxComponent>(TEXT("Dropped Weapon Pickup Collision"));
+	WeaponPickupCollision->SetRelativeLocation(FVector(20.0f, 0.0f, 10.0f));
+	WeaponPickupCollision->SetRelativeScale3D(FVector(1.5f, 0.5f, 0.5f));
+
 	// Set Data Tables
 	static ConstructorHelpers::FObjectFinder<UDataTable> FGetWeaponObject(TEXT("/Game/Weapon/Data/DT_Weapon"));
 	if (FGetWeaponObject.Succeeded())
@@ -105,57 +110,60 @@ void AWeaponPickup::Tick(float DeltaTime)
 }
 void AWeaponPickup::SetWeaponToPickup(FName DroppedWeapon)
 {
-	FGetWeapon* RowWeapon = FGetWeaponDataTable->FindRow<FGetWeapon>(DroppedWeapon, FString("Couldn't Find"), true);
-
-	// Setup the weapon's components
-	WeaponParticleSys->SetColorParameter(FName("ParamColour"), GetRarityColour(RowWeapon->Base.Rarity));
-	BaseMesh->SetSkeletalMesh(RowWeapon->Base.Mesh);
-	MagazineMesh->AttachToComponent(BaseMesh, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false), FName("MagazineSocket"));
-	MagazineMesh->SetStaticMesh(RowWeapon->Base.MagMesh);
-
-	// Create a random roll for the weapon
-	// Local variable to hold the perk columns
-	TArray<FGenTable> CreatedTable;
-	// For each column of perks
-	for (int i = 0; i < RowWeapon->PerkTable.Num(); i++)
+	if (DroppedWeapon != "")
 	{
-		// Choose a amount of random perks from the perk table
-		NewPerkColumn.CurrentSelected = 0;
-		NewPerkColumn.Column = GenerateRandomPerkColumn(RowWeapon->PerkTable[i]);
-		CreatedTable.Add(NewPerkColumn);
-	};
+		FGetWeapon* RowWeapon = FGetWeaponDataTable->FindRow<FGetWeapon>(DroppedWeapon, FString("Couldn't Find"), true);
 
-	// Get the Archetype
-	FArchetype* RowArchetype = FArchetypeDataTable->FindRow<FArchetype>(RowWeapon->Base.Archetype, FString("Couldn't Find"), true);
+		// Setup the weapon's components
+		WeaponParticleSys->SetColorParameter(FName("ParamColour"), GetRarityColour(RowWeapon->Base.Rarity));
+		BaseMesh->SetSkeletalMesh(RowWeapon->Base.Mesh);
+		MagazineMesh->AttachToComponent(BaseMesh, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false), FName("MagazineSocket"));
+		MagazineMesh->SetStaticMesh(RowWeapon->Base.MagMesh);
 
-	// Set this weapons variable
-	Weapon.Base = RowWeapon->Base;
-	Weapon.Class = RowWeapon->Class;
-	Weapon.Stats = RowWeapon->Stats;
-	Weapon.Archetype = *RowArchetype;
-	Weapon.PerkTable = CreatedTable;
-
-	// Set stats based on perks chosen
-	// For each perk column
-	for (int i = 0; i < Weapon.PerkTable.Num(); i++)
-	{
-		// If the perk column contains sights, then...
-		if (Weapon.PerkTable[i].Column[0].Type == Sight)
+		// Create a random roll for the weapon
+		// Local variable to hold the perk columns
+		TArray<FGenTable> CreatedTable;
+		// For each column of perks
+		for (int i = 0; i < RowWeapon->PerkTable.Num(); i++)
 		{
-			SightMesh->SetStaticMesh(Weapon.PerkTable[i].Column[0].Mesh);
-			SightMesh->AttachToComponent(BaseMesh, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false), FName("SightSocket"));
+			// Choose a amount of random perks from the perk table
+			NewPerkColumn.CurrentSelected = 0;
+			NewPerkColumn.Column = GenerateRandomPerkColumn(RowWeapon->PerkTable[i]);
+			CreatedTable.Add(NewPerkColumn);
 		};
-		// Add the perk stats to the weapon stats -- This could be updated at a later point.  However, doing Weapon.Stats(Weapon.Stats.Impact += Weapon...Impact) doesn't work
-		Weapon.Stats.Impact += Weapon.PerkTable[i].Column[0].Stats.Impact;
-		Weapon.Stats.Range += Weapon.PerkTable[i].Column[0].Stats.Range;
-		Weapon.Stats.Stability += Weapon.PerkTable[i].Column[0].Stats.Stability;
-		Weapon.Stats.Handling += Weapon.PerkTable[i].Column[0].Stats.Handling;
-		Weapon.Stats.Reload += Weapon.PerkTable[i].Column[0].Stats.Reload;
-		Weapon.Stats.Magazine += Weapon.PerkTable[i].Column[0].Stats.Magazine;
-	}
 
-	UWeaponPickupWidget* CastedWidget = Cast<UWeaponPickupWidget>(WeaponWidgetComponent->GetWidget());
-	CastedWidget->SetupRef(this);
+		// Get the Archetype
+		FArchetype* RowArchetype = FArchetypeDataTable->FindRow<FArchetype>(RowWeapon->Base.Archetype, FString("Couldn't Find"), true);
+
+		// Set this weapons variable
+		Weapon.Base = RowWeapon->Base;
+		Weapon.Class = RowWeapon->Class;
+		Weapon.Stats = RowWeapon->Stats;
+		Weapon.Archetype = *RowArchetype;
+		Weapon.PerkTable = CreatedTable;
+
+		// Set stats based on perks chosen
+		// For each perk column
+		for (int i = 0; i < Weapon.PerkTable.Num(); i++)
+		{
+			// If the perk column contains sights, then...
+			if (Weapon.PerkTable[i].Column[0].Type == Sight)
+			{
+				SightMesh->SetStaticMesh(Weapon.PerkTable[i].Column[0].Mesh);
+				SightMesh->AttachToComponent(BaseMesh, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false), FName("SightSocket"));
+			};
+			// Add the perk stats to the weapon stats -- This could be updated at a later point.  However, doing Weapon.Stats(Weapon.Stats.Impact += Weapon...Impact) doesn't work
+			Weapon.Stats.Impact += Weapon.PerkTable[i].Column[0].Stats.Impact;
+			Weapon.Stats.Range += Weapon.PerkTable[i].Column[0].Stats.Range;
+			Weapon.Stats.Stability += Weapon.PerkTable[i].Column[0].Stats.Stability;
+			Weapon.Stats.Handling += Weapon.PerkTable[i].Column[0].Stats.Handling;
+			Weapon.Stats.Reload += Weapon.PerkTable[i].Column[0].Stats.Reload;
+			Weapon.Stats.Magazine += Weapon.PerkTable[i].Column[0].Stats.Magazine;
+		}
+
+		UWeaponPickupWidget* CastedWidget = Cast<UWeaponPickupWidget>(WeaponWidgetComponent->GetWidget());
+		CastedWidget->SetupRef(this);
+	}
 }
 
 
@@ -173,6 +181,13 @@ TArray<FPerk> AWeaponPickup::GenerateRandomPerkColumn(FPerkTable PerkTable)
 		PerkList.RemoveAt(Index);
 	}
 	return PerkHold;
+}
+
+// Called to pickup the weapon
+void AWeaponPickup::PickupWeapon()
+{
+	// Destroy the pickup
+	Destroy();
 }
 
 // Called whenever the rarity colour is needed

@@ -4,6 +4,8 @@
 #include "BaseCharacter.h"
 
 #include "BaseWeapon.h"
+#include "WeaponInventoryComponent.h"
+#include "WeaponPickup.h"
 
 // Sets default values
 ABaseCharacter::ABaseCharacter()
@@ -16,7 +18,7 @@ ABaseCharacter::ABaseCharacter()
 
 	// Setup First Person Camera
 	FirstPersonCamera = CreateDefaultSubobject<UCameraComponent>(TEXT("First Person Camera"));
-	FirstPersonCamera->SetRelativeLocation(FVector(-39.56f, 1.75f, 64.f));
+	FirstPersonCamera->SetRelativeLocation(FVector(0.0f, 1.75f, 74.0f));
 	FirstPersonCamera->bUsePawnControlRotation = true;
 
 	// Setup Third Person Mesh
@@ -44,6 +46,9 @@ ABaseCharacter::ABaseCharacter()
 	EnergyWeaponComponent = CreateDefaultSubobject<UChildActorComponent>(TEXT("Energy Weapon Component"));
 	HeavyWeaponComponent = CreateDefaultSubobject<UChildActorComponent>(TEXT("Heavy Weapon Component"));
 
+	// Setup Weapon Inventory Component
+	WeaponInventoryComponent = CreateDefaultSubobject<UWeaponInventoryComponent>(TEXT("Weapon Inventory"));
+
 	// Make Third Person Components Hidden, set FPCamera to main viewport
 	FirstPersonCamera->SetActive(true, true);
 	ThirdPersonMesh->SetVisibility(false, false);
@@ -66,9 +71,15 @@ void ABaseCharacter::BeginPlay()
 
 	// Setup Child Actor Components with the ABaseWeapons
 	// Kinetic Weapon
-	KineticWeaponComponent->AttachToComponent(FirstPersonMesh, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false), FName("PrimarySocket"));
+	KineticWeaponComponent->AttachToComponent(FirstPersonMesh, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false), FName("GripPoint"));
 
 	// Energy Weapon
+	EnergyWeaponComponent->AttachToComponent(ThirdPersonMesh, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false), FName("SecondarySocket"));
+	EnergyWeaponComponent->SetVisibility(false, false);
+
+	// Heavy Weapon
+	HeavyWeaponComponent->AttachToComponent(ThirdPersonMesh, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false), FName("TertiarySocket"));
+	HeavyWeaponComponent->SetVisibility(false, false);
 }
 
 // Called every frame
@@ -152,15 +163,102 @@ void ABaseCharacter::RotateY(float AxisValue)
 	}
 }
 
-void ABaseCharacter::SwitchToNextPrevious(float AxisValue)
-{
-
-}
-
 void ABaseCharacter::Interact()
 {
+	// Trace items infront of the player
+	// Generate information for the trace
+	FHitResult TraceHit = FHitResult(ForceInit);
+	FVector TraceStart = FirstPersonCamera->GetComponentLocation() + (GetActorForwardVector() * 100);
+	FVector TraceEnd = (TraceStart + (GetActorForwardVector() * 150));
+	ECollisionChannel TraceChannel = ECC_GameTraceChannel1;
 
+	FCollisionQueryParams TraceParams(FName(TEXT("Interact Trace")), true, NULL);
+	TraceParams.bTraceComplex = true;
+	TraceParams.bReturnPhysicalMaterial = true;
+
+	bool bInteractTrace = GetWorld()->LineTraceSingleByChannel(TraceHit, TraceStart, TraceEnd, TraceChannel, TraceParams);
+	DrawDebugLine(GetWorld(), TraceStart, TraceEnd, FColor::Green, false, 5.f, ECC_WorldStatic, 1.f);
+	if (bInteractTrace)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Hit Actor"));
+		DrawDebugBox(GetWorld(), TraceHit.ImpactPoint, FVector(2.f, 2.f, 2.f), FColor::Blue, false, 5.f, ECC_WorldStatic, 1.f);
+		if (TraceHit.Actor->GetClass()->GetName() == "BP_WeaponPickup_C")
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Hit Pickup"));
+			WeaponToPickup = Cast<AWeaponPickup>(TraceHit.Actor);
+
+			// Check if the inventory that the weapon will be placed into is filled or not
+			if (WeaponInventoryComponent->GetInventorySize(WeaponToPickup->Weapon.Base.Slot) < 10)
+			{
+				PickupWeapon();
+			}
+		}
+	}
 }
+
+void ABaseCharacter::PickupWeapon()
+{
+	// Get Weapon property from WeaponToPickup, dont pass through WeaponToPickup itself
+	WeaponInventoryComponent->AddWeaponToInventory(WeaponToPickup->Weapon);
+	// Check if it is the first weapon in the inventory
+	if (WeaponInventoryComponent->GetInventorySize(WeaponToPickup->Weapon.Base.Slot) == 1)
+	{
+		SetupNewWeapon(WeaponToPickup->Weapon.Base.Slot);
+	}
+	WeaponToPickup->PickupWeapon();
+}
+
+void ABaseCharacter::SetupNewWeapon(ESlotType SlotType)
+{
+	UChildActorComponent* CurrentSlotComponent = nullptr;
+	FWeapon * CurrentInventoryWeapon = nullptr;
+	ABaseWeapon* CurrentWeaponClass = nullptr;
+
+	// Get a reference to the current slot component and matching array
+	if (CurrentSlot == SlotOne)
+	{
+		CurrentSlotComponent = KineticWeaponComponent;
+		CurrentInventoryWeapon = &(WeaponInventoryComponent->KineticInventory[0]);
+		CurrentWeaponClass = KineticWeapon;
+	}
+	else if (CurrentSlot == SlotTwo)
+	{
+		CurrentSlotComponent = EnergyWeaponComponent;
+		CurrentInventoryWeapon = &(WeaponInventoryComponent->EnergyInventory[0]);
+		CurrentWeaponClass = EnergyWeapon;
+	}
+	else if (CurrentSlot == SlotThree)
+	{
+		CurrentSlotComponent = HeavyWeaponComponent;
+		CurrentInventoryWeapon = &(WeaponInventoryComponent->HeavyInventory[0]);
+		CurrentWeaponClass = HeavyWeapon;
+	}
+
+	// Set the child actor class and cast to it
+	CurrentSlotComponent->SetChildActorClass(CurrentInventoryWeapon->Class);
+	CurrentWeaponClass = Cast<ABaseWeapon>(CurrentSlotComponent->GetChildActor());
+
+	// Check if the weapon has a sight perk
+	for (int i = 0; i < CurrentInventoryWeapon->PerkTable.Num(); i++)
+	{
+		// If the perk at Column i, index CurrentSelected has a Type of Sight, then...
+		if (CurrentInventoryWeapon->PerkTable[i].Column[CurrentInventoryWeapon->PerkTable[i].CurrentSelected].Type == Sight)
+		{
+			// Call function SetSight
+			CurrentWeaponClass->SetupWeaponBase(SlotType, true);
+		}
+		else
+		{
+			CurrentWeaponClass->SetupWeaponBase(SlotType, false);
+		}
+	}
+	// Check if it is the current weapon in the first person socket.  If it is, set it to be
+	if (KineticWeaponComponent->GetAttachSocketName() == "PrimarySocket")
+	{
+		CurrentWeapon = CurrentWeaponClass;
+	}
+}
+
 
 void ABaseCharacter::Reload()
 {
@@ -254,16 +352,127 @@ void ABaseCharacter::SecondaryFire()
 
 void ABaseCharacter::SwitchToKinetic()
 {
-
+	if (CurrentSlot != SlotOne)
+	{
+		SwitchWeapon(SlotOne);
+	}
 }
 
 void ABaseCharacter::SwitchToEnergy()
 {
-
+	if (CurrentSlot != SlotTwo)
+	{
+		SwitchWeapon(SlotTwo);
+	}
 }
 
 void ABaseCharacter::SwitchToHeavy()
 {
-
+	if (CurrentSlot != SlotThree)
+	{
+		SwitchWeapon(SlotThree);
+	}
 }
 
+void ABaseCharacter::SwitchToNextPrevious(float AxisValue)
+{
+	switch (CurrentSlot) {
+	case SlotOne:
+		// If AxisValue is 1, go to the next weapon
+		if (AxisValue == 1)
+		{
+			SwitchWeapon(SlotTwo);
+		}
+		// If AxisValue is -1, go to the previous weapon
+		else if (AxisValue == -1)
+		{
+			SwitchWeapon(SlotThree);
+		}
+		break;
+
+	case SlotTwo:
+		// If AxisValue is 1, go to the next weapon
+		if (AxisValue == 1)
+		{
+			SwitchWeapon(SlotThree);
+		}
+		// If AxisValue is -1, go to the previous weapon
+		else if (AxisValue == -1)
+		{
+			SwitchWeapon(SlotOne);
+		}
+		break;
+
+	case SlotThree:
+		// If AxisValue is 1, go to the next weapon
+		if (AxisValue == 1)
+		{
+			SwitchWeapon(SlotOne);
+		}
+		// If AxisValue is -1, go to the previous weapon
+		else if (AxisValue == -1)
+		{
+			SwitchWeapon(SlotTwo);
+		}
+		break;
+
+	default:
+
+		break;
+	}
+}
+
+void ABaseCharacter::SwitchWeapon(ESlotType SlotToSwitch)
+{
+	UChildActorComponent* CurrentSlotComponent = nullptr;
+	FName NewSocket;
+	// Get a reference to the current slot
+	if (CurrentSlot == SlotOne)
+	{
+		CurrentSlotComponent = KineticWeaponComponent;
+	}
+	else if (CurrentSlot == SlotTwo)
+	{
+		CurrentSlotComponent = EnergyWeaponComponent;
+	}
+	else if (CurrentSlot == SlotThree)
+	{
+		CurrentSlotComponent = HeavyWeaponComponent;
+	}
+
+	// Swap the current slot weapon and the new slot weapons
+	switch (SlotToSwitch) {
+	case SlotOne:
+		NewSocket = KineticWeaponComponent->GetAttachSocketName();
+		CurrentSlotComponent->AttachToComponent(ThirdPersonMesh, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false), NewSocket);
+		CurrentSlotComponent->SetVisibility(false, false);
+		KineticWeaponComponent->AttachToComponent(FirstPersonMesh, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false), FName("GripPoint"));
+		KineticWeaponComponent->SetVisibility(true, true);
+		CurrentWeapon = KineticWeapon;
+		CurrentSlot = SlotOne;
+		break;
+
+	case SlotTwo:
+		NewSocket = EnergyWeaponComponent->GetAttachSocketName();
+		CurrentSlotComponent->AttachToComponent(ThirdPersonMesh, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false), NewSocket);
+		CurrentSlotComponent->SetVisibility(false, false);
+		EnergyWeaponComponent->AttachToComponent(FirstPersonMesh, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false), FName("GripPoint"));
+		EnergyWeaponComponent->SetVisibility(true, true);
+		CurrentWeapon = EnergyWeapon;
+		CurrentSlot = SlotTwo;
+		break;
+
+	case SlotThree:
+		NewSocket = HeavyWeaponComponent->GetAttachSocketName();
+		CurrentSlotComponent->AttachToComponent(ThirdPersonMesh, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false), NewSocket);
+		CurrentSlotComponent->SetVisibility(false, false);
+		HeavyWeaponComponent->AttachToComponent(FirstPersonMesh, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false), FName("GripPoint "));
+		HeavyWeaponComponent->SetVisibility(true, true);
+		CurrentWeapon = HeavyWeapon;
+		CurrentSlot = SlotThree;
+		break;
+
+	default:
+		break;
+	}
+}
