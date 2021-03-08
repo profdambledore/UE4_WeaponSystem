@@ -6,6 +6,7 @@
 #include "BaseWeapon.h"
 #include "WeaponInventoryComponent.h"
 #include "WeaponPickup.h"
+#include "BaseHUD.h"
 
 // Sets default values
 ABaseCharacter::ABaseCharacter()
@@ -69,6 +70,10 @@ void ABaseCharacter::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// Set the reference to the HUD
+	HUDRef = Cast<ABaseHUD>(GetWorld()->GetFirstPlayerController()->GetHUD());
+	HUDRef->GetPlayerRef(this);
+
 	// Setup Child Actor Components with the ABaseWeapons
 	// Kinetic Weapon
 	KineticWeaponComponent->AttachToComponent(FirstPersonMesh, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false), FName("GripPoint"));
@@ -80,6 +85,9 @@ void ABaseCharacter::BeginPlay()
 	// Heavy Weapon
 	HeavyWeaponComponent->AttachToComponent(ThirdPersonMesh, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false), FName("TertiarySocket"));
 	HeavyWeaponComponent->SetVisibility(false, false);
+
+	// Create the reference to the player controller
+	PC = Cast<APlayerController>(GetController());
 }
 
 // Called every frame
@@ -211,23 +219,23 @@ void ABaseCharacter::PickupWeapon()
 void ABaseCharacter::SetupNewWeapon(ESlotType SlotType)
 {
 	UChildActorComponent* CurrentSlotComponent = nullptr;
-	FWeapon * CurrentInventoryWeapon = nullptr;
+	FWeapon* CurrentInventoryWeapon = nullptr;
 	ABaseWeapon* CurrentWeaponClass = nullptr;
 
 	// Get a reference to the current slot component and matching array
-	if (CurrentSlot == SlotOne)
+	if (SlotType == SlotOne)
 	{
 		CurrentSlotComponent = KineticWeaponComponent;
 		CurrentInventoryWeapon = &(WeaponInventoryComponent->KineticInventory[0]);
 		CurrentWeaponClass = KineticWeapon;
 	}
-	else if (CurrentSlot == SlotTwo)
+	else if (SlotType == SlotTwo)
 	{
 		CurrentSlotComponent = EnergyWeaponComponent;
 		CurrentInventoryWeapon = &(WeaponInventoryComponent->EnergyInventory[0]);
 		CurrentWeaponClass = EnergyWeapon;
 	}
-	else if (CurrentSlot == SlotThree)
+	else if (SlotType == SlotThree)
 	{
 		CurrentSlotComponent = HeavyWeaponComponent;
 		CurrentInventoryWeapon = &(WeaponInventoryComponent->HeavyInventory[0]);
@@ -245,18 +253,47 @@ void ABaseCharacter::SetupNewWeapon(ESlotType SlotType)
 		if (CurrentInventoryWeapon->PerkTable[i].Column[CurrentInventoryWeapon->PerkTable[i].CurrentSelected].Type == Sight)
 		{
 			// Call function SetSight
-			CurrentWeaponClass->SetupWeaponBase(SlotType, true);
-		}
-		else
-		{
-			CurrentWeaponClass->SetupWeaponBase(SlotType, false);
+			CurrentWeaponClass->SetupWeaponBase(CurrentInventoryWeapon->Base.Slot, true);
 		}
 	}
-	// Check if it is the current weapon in the first person socket.  If it is, set it to be
-	if (KineticWeaponComponent->GetAttachSocketName() == "PrimarySocket")
+	
+	// If the base wasen't set up (no sight perk was found)
+	if (CurrentWeaponClass->ThisWeapon == nullptr)
 	{
-		CurrentWeapon = CurrentWeaponClass;
+		UE_LOG(LogTemp, Warning, TEXT("NoSight"))
+		CurrentWeaponClass->SetupWeaponBase(CurrentInventoryWeapon->Base.Slot, false);
 	}
+
+	// Set pointers to induvidual slots
+	if (SlotType == SlotOne)
+	{
+		KineticWeapon = CurrentWeaponClass;
+	}
+	else if (SlotType == SlotTwo)
+	{
+		EnergyWeapon = CurrentWeaponClass;
+	}
+	else if (SlotType == SlotThree)
+	{
+		HeavyWeapon = CurrentWeaponClass;
+	}
+
+	// Check if it is the current weapon in the first person socket.  If it is, set it to be
+	if (KineticWeaponComponent->GetAttachSocketName() == "GripPoint")
+	{
+		CurrentWeapon = KineticWeapon;
+	}
+	else if (EnergyWeaponComponent->GetAttachSocketName() == "GripPoint")
+	{
+		CurrentWeapon = EnergyWeapon;
+	}
+	else if (HeavyWeaponComponent->GetAttachSocketName() == "GripPoint")
+	{
+		CurrentWeapon = HeavyWeapon;
+	}
+
+	// Update HUD Elements
+	HUDRef->UpdateHUDElements();
 }
 
 
@@ -298,6 +335,8 @@ void ABaseCharacter::SwitchCamera()
 
 void ABaseCharacter::Inventory()
 {
+	HUDRef->ToggleMenu();
+
 	// Check to see if currently in the menu
 	if (bIsInMenu == false)
 	{
@@ -316,6 +355,15 @@ void ABaseCharacter::Inventory()
 			ThirdPersonMesh->SetVisibility(true, true);
 			MenuCamera->SetActive(true, true);
 		}
+
+		// Enable Mouse Cursor
+		if (PC)
+		{
+			PC->bShowMouseCursor = true;
+			PC->bEnableClickEvents = true;
+			PC->bEnableMouseOverEvents = true;
+		}
+
 		bIsInMenu = true;
 	}
 	else if (bIsInMenu == true)
@@ -335,8 +383,16 @@ void ABaseCharacter::Inventory()
 			ThirdPersonMesh->SetVisibility(false, false);
 			MenuCamera->SetActive(false, false);
 		}
-		bIsInMenu = false;
 
+		// Disable Mouse Cursor
+		if (PC)
+		{
+			PC->bShowMouseCursor = false;
+			PC->bEnableClickEvents = false;
+			PC->bEnableMouseOverEvents = false;
+		}
+
+		bIsInMenu = false;
 	}
 }
 
@@ -450,6 +506,9 @@ void ABaseCharacter::SwitchWeapon(ESlotType SlotToSwitch)
 		KineticWeaponComponent->SetVisibility(true, true);
 		CurrentWeapon = KineticWeapon;
 		CurrentSlot = SlotOne;
+
+		// Update HUD Elements
+		HUDRef->UpdateHUDElements();
 		break;
 
 	case SlotTwo:
@@ -460,16 +519,22 @@ void ABaseCharacter::SwitchWeapon(ESlotType SlotToSwitch)
 		EnergyWeaponComponent->SetVisibility(true, true);
 		CurrentWeapon = EnergyWeapon;
 		CurrentSlot = SlotTwo;
+
+		// Update HUD Elements
+		HUDRef->UpdateHUDElements();
 		break;
 
 	case SlotThree:
 		NewSocket = HeavyWeaponComponent->GetAttachSocketName();
 		CurrentSlotComponent->AttachToComponent(ThirdPersonMesh, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false), NewSocket);
 		CurrentSlotComponent->SetVisibility(false, false);
-		HeavyWeaponComponent->AttachToComponent(FirstPersonMesh, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false), FName("GripPoint "));
+		HeavyWeaponComponent->AttachToComponent(FirstPersonMesh, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false), FName("GripPoint"));
 		HeavyWeaponComponent->SetVisibility(true, true);
 		CurrentWeapon = HeavyWeapon;
 		CurrentSlot = SlotThree;
+
+		// Update HUD Elements
+		HUDRef->UpdateHUDElements();
 		break;
 
 	default:

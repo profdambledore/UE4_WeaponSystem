@@ -67,6 +67,9 @@ enum ERarityType // The rarity of the weapon
 {
 	Common UMETA(DisplayName = "Common"),
 	Uncommon UMETA(DisplayName = "Uncommon"),
+	Rare UMETA(DisplayName = "Rare"),
+	Legendary UMETA(DisplayName = "Legendary"),
+	Pinnacle UMETA(DisplayName = "Pinnacle"),
 };
 
 UENUM()
@@ -181,10 +184,13 @@ public:
 		float MaxReload;
 
 	UPROPERTY(EditAnywhere)
-		float MaxMag;
+		int MaxMag;
 
 	UPROPERTY(EditAnywhere)
-		float MinMag;
+		int MinMag;
+
+	UPROPERTY(EditAnywhere)
+		int Reserves;
 };
 
 USTRUCT(BlueprintType)

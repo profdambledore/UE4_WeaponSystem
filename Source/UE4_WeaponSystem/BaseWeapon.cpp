@@ -11,6 +11,9 @@ ABaseWeapon::ABaseWeapon()
 	// Setup Scene Component
 	//WeaponRoot = CreateDefaultSubobject<USceneComponent>(TEXT("Default Scene Root"));
 
+	// Turn off collisions
+	this->SetActorEnableCollision(false);
+
 	// Setup Weapon Meshes
 	BaseMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("Base Mesh"));
 	SetRootComponent(BaseMesh);
@@ -49,8 +52,6 @@ void ABaseWeapon::SetupWeaponBase(ESlotType SlotType, bool bHasSight)
 	PlayerRef = Cast<ABaseCharacter>(GetParentActor());
 
 	// Set the reference to the correct array
-	// * is a pointer, makes a copy of the FWeapon
-	// & is a reference to the weapon in the inventory
 	switch (SlotType)
 	{
 	case SlotOne:
@@ -71,6 +72,7 @@ void ABaseWeapon::SetupWeaponBase(ESlotType SlotType, bool bHasSight)
 
 	// Set the skeletal mesh of the weapon
 	BaseMesh->SetSkeletalMesh(ThisWeapon->Base.Mesh);
+	UE_LOG(LogTemp, Warning, TEXT("%a"), (ThisWeapon->Base.Mesh));
 
 	if (bHasSight)
 	{
@@ -82,6 +84,8 @@ void ABaseWeapon::SetupWeaponBase(ESlotType SlotType, bool bHasSight)
 	MagazineMesh->AttachToComponent(BaseMesh, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false), FName("MagazineSocket"));
 	MagazineMesh->SetStaticMesh(ThisWeapon->Base.MagMesh);
 
+	// Setup stats
+	SetupStats(true);
 }
 
 void ABaseWeapon::SetSight()
@@ -96,5 +100,28 @@ void ABaseWeapon::SetSight()
 			break;
 		};
 	};
+}
+
+void ABaseWeapon::SetupStats(bool bIsBaseInit)
+{
+	if (ThisWeapon != nullptr)
+	{
+		// If this function has been called while setting up the weapons base, then also setup the damage stats
+		if (bIsBaseInit == true)
+		{
+			WeaponType = ThisWeapon->Base.Type;
+			AmmoType = ThisWeapon->Base.AmmoType;
+			DamageType = ThisWeapon->Base.Damage;
+
+			RateOfFire = ThisWeapon->Archetype.Impact.RateOfFire;
+			MaxDamage = ThisWeapon->Archetype.Impact.MaxDamage;
+			MinDamage = ThisWeapon->Archetype.Impact.MinDamage;
+			CritMultiplier = ThisWeapon->Archetype.Impact.CritMultiplier;
+			CurrentMag = ThisWeapon->Stats.Magazine;
+			CurrentReserves = ThisWeapon->Archetype.Reload.Reserves;
+		}
+
+
+	}
 }
 

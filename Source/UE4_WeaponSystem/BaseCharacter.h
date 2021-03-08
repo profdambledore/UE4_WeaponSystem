@@ -10,6 +10,7 @@
 #include "GameFramework/SpringArmComponent.h"
 #include "Components/ChildActorComponent.h"
 #include "DrawDebugHelpers.h"
+#include "Kismet/GameplayStatics.h"
 
 #include "WeaponStatLibrary.h"
 
@@ -102,18 +103,20 @@ public:
 		TEnumAsByte<ESlotType> CurrentSlot;
 
 	class AWeaponPickup* WeaponToPickup;
+	APlayerController* PC;
+	class ABaseHUD* HUDRef;
 
 	// Weapon Class Properties
 	// The current selected weapon
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, Category = "Test")
 		class ABaseWeapon* CurrentWeapon = nullptr;
 
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, Category = "Test")
 		class ABaseWeapon* KineticWeapon = nullptr;
 
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, Category = "Test")
 		class ABaseWeapon* EnergyWeapon = nullptr;
 
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, Category = "Test")
 		class ABaseWeapon* HeavyWeapon = nullptr;
 };

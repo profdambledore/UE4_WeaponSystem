@@ -203,6 +203,18 @@ FLinearColor AWeaponPickup::GetRarityColour(ERarityType Rarity)
 		C = FLinearColor(0, 0.45, 0.02, 1);
 		break;
 
+	case Rare:
+		C = FLinearColor(0, 0.3, 0.6, 1);
+		break;
+
+	case Legendary:
+		C = FLinearColor(0.05, 0.0, 0.6, 1);
+		break;
+
+	case Pinnacle:
+		C = FLinearColor(0.9, 0.15, 0.0, 1);
+		break;
+
 	default:
 		break;
 

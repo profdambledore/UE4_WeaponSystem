@@ -36,15 +36,15 @@ public:
 	UFUNCTION()
 		void SetSight();
 
+	UFUNCTION()
+		void SetupStats(bool bIsBaseInit);
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
 public:	
 	// Base Weapon Components
-	//UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
-		//USceneComponent* WeaponRoot;
-
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
 		USkeletalMeshComponent* BaseMesh;
 
@@ -57,7 +57,21 @@ public:
 	UPROPERTY(VisibleAnywhere, Category = "Testing")
 		class ABaseCharacter * PlayerRef = nullptr;
 
-protected:
+	// Weapon Properties
 	FWeapon* ThisWeapon = nullptr;
+
+	TEnumAsByte<EWeaponType> WeaponType;
+	TEnumAsByte<EAmmoType> AmmoType;
+	TEnumAsByte<EDamageType> DamageType;
+
+	int RateOfFire;
+	int MaxDamage;
+	int MinDamage;
+	float CritMultiplier;
+
+	int CurrentMag;
+	int MaxMag;
+	int CurrentReserves;
+
 
 };
